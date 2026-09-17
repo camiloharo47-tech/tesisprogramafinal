@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- ================================================= -->
+    <!-- PROYECTO                                          -->
+    <!-- ================================================= -->
+
+    <div
+        class="d-flex
+               justify-content-between
+               align-items-start
+               flex-wrap
+               gap-3
+               mb-4"
+    >
+
+        <div>
+
+            <h2>
+                {{ project.name }}
+            </h2>
+
+            <p class="text-muted">
+
+                {{ project.description
+                   or
+                   "Sin descripción." }}
+
+            </p>
+
+            <small class="text-muted">
+
+                ID del proyecto:
+                {{ project.id }}
+
+            </small>
+
+        </div>
+
+
+        <div class="d-flex flex-wrap gap-2">
+
+            <!-- ========================================= -->
+            <!-- VER ÚLTIMO SRS                            -->
+            <!-- ========================================= -->
+
+            {% if latest_srs %}
+
+                <a
+                    href="{{ url_for(
+                        'main.view_srs',
+                        document_id=latest_srs.id
+                    ) }}"
+                    class="btn btn-success"
+                >
+                    Ver último SRS
+                </a>
+
+            {% endif %}
+
+
+            <!-- ========================================= -->
+            <!-- ELIMINAR PROYECTO                         -->
+            <!-- ========================================= -->
+
+            <form
+                action="{{ url_for(
+                    'main.delete_project',
+                    project_id=project.id
+                ) }}"
+                method="POST"
+                onsubmit="
+                    return confirm(
+                        '¿Seguro que deseas eliminar este proyecto? Se eliminarán también sus entrevistas, requisitos y documentos SRS.'
+                    );
+                "
+            >
+
+                <button
+                    type="submit"
+                    class="btn btn-danger"
+                >
+                    Eliminar proyecto
+                </button>
+
+            </form>
+
+
+            <!-- ========================================= -->
+            <!-- VOLVER                                    -->
+            <!-- ========================================= -->
+
+            <a
+                href="{{ url_for(
+                    'main.index'
+                ) }}"
+                class="btn btn-outline-secondary"
+            >
+                Volver
+            </a>
+
+        </div>
+
+    </div>
+
+
+
+
+    <!-- ================================================= -->
+    <!-- SUBIR ENTREVISTA                                  -->
+    <!-- ================================================= -->
+
+    <div class="card mb-5 shadow-sm">
+
+        <div class="card-header">
+
+            <strong>
+                Nueva entrevista
+            </strong>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <p class="text-muted">
+
+                Sube el audio correspondiente
+                a una entrevista del proyecto.
+
+            </p>
+
+
+            <form
+                method="POST"
+                action="{{ url_for(
+                    'main.upload_interview',
+                    project_id=project.id
+                ) }}"
+                enctype="multipart/form-data"
+            >
+
+                <div class="mb-3">
+
+                    <label
+                        for="audio"
+                        class="form-label"
+                    >
+
+                        Audio de entrevista
+
+                    </label>
+
+
+                    <input
+                        id="audio"
+                        type="file"
+                        name="audio"
+                        class="form-control"
+                        accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4"
+                        required
+                    >
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+
+                    Subir entrevista
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- ENTREVISTAS                                       -->
+    <!-- ================================================= -->
+
+    <h4 class="mb-3">
+
+        Entrevistas del proyecto
+
+    </h4>
+
+
+    {% if interviews %}
+
+        {% for interview in interviews %}
+
+            <div class="card mb-3 shadow-sm">
+
+                <div class="card-body">
+
+                    <div
+                        class="d-flex
+                               justify-content-between
+                               align-items-center
+                               flex-wrap
+                               gap-3"
+                    >
+
+                        <!-- ================================= -->
+                        <!-- INFORMACIÓN DE LA ENTREVISTA      -->
+                        <!-- ================================= -->
+
+                        <div>
+
+                            <h6 class="mb-1">
+
+                                Entrevista
+                                {{ interview.id }}
+
+                            </h6>
+
+
+                            {% if interview.transcription %}
+
+                                <span class="badge bg-success">
+
+                                    Transcrita
+
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-secondary">
+
+                                    Pendiente de transcripción
+
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <!-- ================================= -->
+                        <!-- BOTONES                           -->
+                        <!-- ================================= -->
+
+                        <div class="d-flex flex-wrap gap-2">
+
+
+                            <!-- ============================= -->
+                            <!-- ORQUESTADOR                   -->
+                            <!-- ============================= -->
+
+                            <form
+                                method="POST"
+                                action="{{ url_for(
+                                    'main.process_interview_all',
+                                    interview_id=interview.id
+                                ) }}"
+                                onsubmit="
+                                    return confirm(
+                                        'Se ejecutarán automáticamente los cuatro agentes. Este proceso puede tardar varios minutos. ¿Deseas continuar?'
+                                    );
+                                "
+                            >
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary btn-sm"
+                                >
+
+                                    Procesar entrevista completa
+
+                                </button>
+
+                            </form>
+
+
+                            <!-- ============================= -->
+                            <!-- VER ENTREVISTA                -->
+                            <!-- ============================= -->
+
+                            <a
+                                href="{{ url_for(
+                                    'main.interview_detail',
+                                    interview_id=interview.id
+                                ) }}"
+                                class="btn btn-outline-primary btn-sm"
+                            >
+
+                                Ver entrevista
+
+                            </a>
+
+
+                            <!-- ============================= -->
+                            <!-- VER REQUISITOS                -->
+                            <!-- ============================= -->
+
+                            {% if interview.transcription %}
+
+                                <a
+                                    href="{{ url_for(
+                                        'main.view_requirements',
+                                        interview_id=interview.id
+                                    ) }}"
+                                    class="btn btn-outline-success btn-sm"
+                                >
+
+                                    Ver requisitos
+
+                                </a>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================= -->
+                    <!-- EXPLICACIÓN ORQUESTADOR           -->
+                    <!-- ================================= -->
+
+                    <div class="mt-3">
+
+                        <small class="text-muted">
+
+                            Procesamiento completo:
+
+                            Whisper
+                            →
+
+                            Requisitos funcionales
+                            →
+
+                            RAG
+                            →
+
+                            SRS IEEE 830
+
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="alert alert-info">
+
+            Este proyecto todavía no tiene
+            entrevistas registradas.
+
+        </div>
+
+    {% endif %}
+
+
+    <!-- ================================================= -->
+    <!-- DOCUMENTO SRS                                     -->
+    <!-- ================================================= -->
+
+    {% if latest_srs %}
+
+        <div class="card mt-5">
+
+            <div class="card-header">
+
+                <strong>
+                    Documento SRS
+                </strong>
+
+            </div>
+
+
+            <div class="card-body">
+
+                <p>
+
+                    Ya existe un documento SRS
+                    generado para este proyecto.
+
+                </p>
+
+
+                <div class="d-flex flex-wrap gap-2">
+
+                    <!-- VER SRS -->
+
+                    <a
+                        href="{{ url_for(
+                            'main.view_srs',
+                            document_id=latest_srs.id
+                        ) }}"
+                        class="btn btn-success"
+                    >
+
+                        Ver último SRS
+
+                    </a>
+
+
+                    <!-- DESCARGAR WORD -->
+
+                    <a
+                        href="{{ url_for(
+                            'main.download_srs',
+                            document_id=latest_srs.id
+                        ) }}"
+                        class="btn btn-outline-success"
+                    >
+
+                        Descargar Word
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,250 @@
+                {% set context = project_context %}
+
+
+                {% if context %}
+
+                    <div
+                        class="card mt-4"
+                        style="
+                            border-color: #0d6efd;
+                        "
+                    >
+
+                        <div class="card-header">
+
+                            <strong>
+
+                                Contexto académico del proyecto
+
+                            </strong>
+
+                        </div>
+
+
+                        <div class="card-body">
+
+                            <!-- CONSULTA -->
+
+                            <p>
+
+                                <strong>
+                                    Consulta utilizada:
+                                </strong>
+
+                            </p>
+
+
+                            <p
+                                style="
+                                    color: #e83e8c;
+                                    font-family: monospace;
+                                "
+                            >
+
+                                {{ context.get(
+                                    "query",
+                                    "No disponible"
+                                ) }}
+
+                            </p>
+
+
+                            {% if context.get('search_kind') == 'academic' %}
+                                <p><strong>Búsqueda académica.</strong>
+                                La síntesis utiliza resúmenes disponibles de artículos.</p>
+                                <p>Bases consultadas: {{ context.get('providers', []) | join(', ') or 'Ninguna consulta completada' }}</p>
+                                {% for warning in context.get('warnings', []) %}
+                                    {% if warning != 'Scopus no consultado: falta configurar SCOPUS_API_KEY.' %}
+                                    <p class="text-muted">{{ warning }}</p>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if context.get('scholar_url') %}
+                                    <p><a href="{{ context.get('scholar_url') }}" target="_blank" rel="noopener noreferrer">Buscar el sistema en Google Scholar (consulta manual)</a></p>
+                                {% endif %}
+                                {% if context.get('references') %}
+                                    <details>
+                                        <summary>Artículos relacionados encontrados</summary>
+                                        <ul>
+                                        {% for reference in context.get('references', []) %}
+                                            <li><a href="{{ reference.get('url') }}" target="_blank" rel="noopener noreferrer">{{ reference.get('title') }}</a>
+                                                — {{ reference.get('provider') }}, {{ reference.get('year') or 'sin año' }}.
+                                                {% if not reference.get('snippet') %}Solo datos bibliográficos; no utilizado como evidencia.{% endif %}
+                                            </li>
+                                        {% endfor %}
+                                        </ul>
+                                    </details>
+                                {% endif %}
+                            {% endif %}
+                            <!-- RESUMEN -->
+
+                            <p>
+
+                                <strong>
+                                    Contexto:
+                                </strong>
+
+                            </p>
+
+
+                            <p
+                                style="
+                                    line-height: 1.7;
+                                "
+                            >
+
+                                {{ context.get(
+                                    "summary",
+                                    "No se generó contexto."
+                                ) }}
+
+                            </p>
+
+
+                            <!-- HECHOS -->
+
+                            {% set facts = context.get(
+                                "facts",
+                                []
+                            ) %}
+
+
+                            {% if facts %}
+
+                                <hr>
+
+                                <p>
+
+                                    <strong>
+                                        Hechos contextuales
+                                        validados:
+                                    </strong>
+
+                                </p>
+
+
+                                <ul>
+
+                                    {% for fact in facts %}
+
+                                        <li class="mb-3">
+
+                                            {{ fact.get(
+                                                "text",
+                                                ""
+                                            ) }}
+
+                                            <br>
+
+                                            <small>
+
+                                                <strong>
+                                                    Evidencia de la fuente:
+                                                </strong>
+
+                                                "{{ fact.get(
+                                                    'evidence',
+                                                    ''
+                                                ) }}"
+
+                                            </small>
+
+                                        </li>
+
+                                    {% endfor %}
+
+                                </ul>
+
+                            {% endif %}
+
+
+                            <!-- FUENTES -->
+
+                            {% set sources = context.get(
+                                "sources",
+                                []
+                            ) %}
+
+
+                            {% if sources %}
+
+                                <hr>
+
+                                <p>
+
+                                    <strong>
+                                        Fuentes utilizadas:
+                                    </strong>
+
+                                </p>
+
+
+                                <ol>
+
+                                    {% for source in sources %}
+
+                                        <li class="mb-4">
+
+                                            <strong>
+
+                                                {{ source.get(
+                                                    "title",
+                                                    "Fuente"
+                                                ) }}
+
+                                            </strong>
+
+                                            <br>
+
+
+                                            {% if source.get("url") %}
+
+                                                <a
+                                                    href="{{ source.get('url') }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+
+                                                    {{ source.get("url") }}
+
+                                                </a>
+
+                                            {% endif %}
+
+
+                                            {% if source.get('provider') %}
+                                                <p class="small">{{ source.get('authors', []) | join(', ') }}
+                                                — {{ source.get('year') or 'sin año' }}.
+                                                {{ source.get('venue', '') }}.
+                                                {{ source.get('provider') }}. DOI: {{ source.get('doi') or 'no disponible' }}.</p>
+                                            {% endif %}
+                                            {% if source.get("snippet") %}
+
+                                                <p
+                                                    class="text-muted
+                                                           small
+                                                           mt-2
+                                                           mb-0"
+                                                >
+
+                                                    {{ source.get(
+                                                        "snippet"
+                                                    ) }}
+
+                                                </p>
+
+                                            {% endif %}
+
+                                        </li>
+
+                                    {% endfor %}
+
+                                </ol>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+

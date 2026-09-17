@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+Entrevista {{ interview.id }}
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="mb-4">
+
+    <a
+        href="{{ url_for('main.project_detail', project_id=project.id) }}"
+        class="text-decoration-none"
+    >
+        ← Volver al proyecto
+    </a>
+
+</div>
+
+
+<h1>
+    Entrevista #{{ interview.id }}
+</h1>
+
+
+<p class="text-muted">
+
+    Proyecto:
+
+    <strong>
+        {{ project.name }}
+    </strong>
+
+</p>
+
+
+<!-- ========================================= -->
+<!-- AUDIO -->
+<!-- ========================================= -->
+
+<div class="card mt-4">
+
+    <div class="card-body">
+
+        <h5>
+            Archivo de audio
+        </h5>
+
+        <p class="mb-0">
+            {{ interview.audio_path }}
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- ========================================= -->
+<!-- TRANSCRIPCIÓN -->
+<!-- ========================================= -->
+
+<div class="card mt-4">
+
+    <div class="card-body">
+
+        <h5>
+            Transcripción
+        </h5>
+
+
+        {% if interview.transcription %}
+
+            <div
+                class="border rounded p-3 bg-light"
+                style="white-space: pre-wrap;"
+            >
+                {{ interview.transcription }}
+            </div>
+
+        {% else %}
+
+            <div class="alert alert-secondary mb-0">
+
+                La entrevista todavía no ha sido
+                procesada por el Agente de
+                Transcripción ASR.
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+
+<!-- ========================================= -->
+<!-- AGENTE 1 -->
+<!-- ========================================= -->
+
+<div class="mt-4">
+
+    <form
+        method="POST"
+        action="{{ url_for('main.transcribe_interview', interview_id=interview.id) }}"
+    >
+
+        <button
+            type="submit"
+            class="btn btn-primary"
+        >
+
+            {% if interview.transcription %}
+
+                Transcribir nuevamente
+
+            {% else %}
+
+                Transcribir entrevista
+
+            {% endif %}
+
+        </button>
+
+    </form>
+
+</div>
+
+
+<!-- ========================================= -->
+<!-- AGENTE 2 -->
+<!-- ========================================= -->
+
+{% if interview.transcription %}
+
+<div class="card mt-4">
+
+    <div class="card-body">
+
+        <h5>
+            Análisis de requisitos funcionales
+        </h5>
+
+        <p class="text-muted">
+
+            El Agente 2 analizará la transcripción
+            utilizando Ollama para identificar
+            únicamente requisitos funcionales.
+
+        </p>
+
+
+        <div class="d-flex gap-2">
+
+            <form
+                method="POST"
+                action="{{ url_for('main.analyze_requirements', interview_id=interview.id) }}"
+            >
+
+                <button
+                    type="submit"
+                    class="btn btn-success"
+                >
+                    Analizar requisitos funcionales
+                </button>
+
+            </form>
+
+
+            <a
+                href="{{ url_for('main.view_requirements', interview_id=interview.id) }}"
+                class="btn btn-outline-secondary"
+            >
+                Ver requisitos
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+
+{% endblock %}

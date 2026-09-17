@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <!-- ================================================= -->
+    <!-- ENCABEZADO                                        -->
+    <!-- ================================================= -->
+
+    <div class="mb-4">
+
+        <h2>
+            Requisitos funcionales
+        </h2>
+
+        <p class="text-muted mb-1">
+
+            Proyecto:
+
+            <strong>
+                {{ project.name }}
+            </strong>
+
+        </p>
+
+        <p class="text-muted">
+
+            Entrevista:
+
+            <strong>
+                {{ interview.id }}
+            </strong>
+
+        </p>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- BOTONES                                           -->
+    <!-- ================================================= -->
+
+    <div
+        class="d-flex
+               flex-wrap
+               gap-2
+               mb-4"
+    >
+
+        <!-- AGENTE 2 -->
+
+        <form
+            action="{{ url_for(
+                'main.analyze_requirements',
+                interview_id=interview.id
+            ) }}"
+            method="POST"
+        >
+
+            <button
+                type="submit"
+                class="btn btn-outline-primary"
+            >
+                Analizar nuevamente
+            </button>
+
+        </form>
+
+
+        <a href="#project-context" class="btn btn-outline-warning">Ver contexto académico del proyecto</a>
+
+        <!-- AGENTE 4 -->
+
+        {% if requirements %}
+
+            <form
+                action="{{ url_for(
+                    'main.generate_srs',
+                    project_id=project.id
+                ) }}"
+                method="POST"
+            >
+
+                <button
+                    type="submit"
+                    class="btn btn-success"
+                >
+                    Generar SRS IEEE 830
+                </button>
+
+            </form>
+
+        {% endif %}
+
+
+        <!-- VOLVER -->
+
+        <a
+            href="{{ url_for(
+                'main.interview_detail',
+                interview_id=interview.id
+            ) }}"
+            class="btn btn-outline-secondary"
+        >
+            Volver a entrevista
+        </a>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- SIN REQUISITOS                                    -->
+    <!-- ================================================= -->
+
+    {% if not requirements %}
+
+        <div class="alert alert-info">
+
+            Todavía no existen requisitos funcionales
+            identificados para esta entrevista.
+
+        </div>
+
+    {% endif %}
+
+
+    <!-- ================================================= -->
+    <!-- REQUISITOS                                        -->
+    <!-- ================================================= -->
+
+    {% for requirement in requirements %}
+
+        <div class="card mb-5 shadow-sm">
+
+            <div class="card-body">
+
+                <!-- ===================================== -->
+                <!-- CÓDIGO Y DESCRIPCIÓN                  -->
+                <!-- ===================================== -->
+
+                <h4 class="mb-3">
+
+                    {{ requirement.code }}
+
+                </h4>
+
+
+                <p
+                    class="fs-5"
+                    style="line-height: 1.6;"
+                >
+
+                    {{ requirement.description }}
+
+                </p>
+
+
+                <hr>
+
+
+                <!-- ===================================== -->
+                <!-- ACTOR                                 -->
+                <!-- ===================================== -->
+
+                <div class="mb-4">
+
+                    <strong>
+                        Actor
+                    </strong>
+
+                    <br>
+
+                    <span class="text-muted">
+
+                        {{ requirement.actor
+                           or "No especificado" }}
+
+                    </span>
+
+                </div>
+
+
+                <!-- ===================================== -->
+                <!-- PRIORIDAD                             -->
+                <!-- ===================================== -->
+
+                <div class="card mb-4">
+
+                    <div class="card-body">
+
+                        <h6 class="mb-3">
+
+                            Prioridad
+
+                        </h6>
+
+
+                        {% if requirement.priority == "esencial" %}
+
+                            <span class="badge bg-danger">
+                                Esencial
+                            </span>
+
+                        {% elif requirement.priority == "opcional" %}
+
+                            <span class="badge bg-info text-dark">
+                                Opcional
+                            </span>
+
+                        {% elif requirement.priority == "condicional" %}
+
+                            <span class="badge bg-warning text-dark">
+                                Condicional
+                            </span>
+
+                        {% else %}
+
+                            <span class="badge bg-secondary">
+                                No especificada
+                            </span>
+
+                        {% endif %}
+
+
+                        <p class="mt-3 mb-0">
+
+                            <strong>
+                                Razón:
+                            </strong>
+
+                            {{ requirement.priority_reason
+                               or
+                               "La entrevista no expresa una prioridad explícita." }}
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ===================================== -->
+                <!-- EVALUACIÓN                            -->
+                <!-- ===================================== -->
+
+                <h6 class="mb-2">
+
+                    Evaluación del requisito
+
+                </h6>
+
+
+                <div class="row g-3 mb-4">
+
+                    <!-- AMBIGÜEDAD -->
+
+                    <div class="col-md-6">
+
+                        <div class="card h-100">
+
+                            <div class="card-body">
+
+                                <h6 class="mb-3">
+
+                                    Ambigüedad
+
+                                </h6>
+
+
+                                {% if requirement.ambiguity_detected %}
+
+                                    <span class="badge bg-warning text-dark">
+                                        Ambiguo
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-success">
+                                        No ambiguo
+                                    </span>
+
+                                {% endif %}
+
+
+                                <p class="mt-3 mb-0">
+
+                                    <strong>
+                                        Razón:
+                                    </strong>
+
+                                    {{ requirement.ambiguity_reason
+                                       or
+                                       "No se identificaron ambigüedades relevantes." }}
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- VERIFICABILIDAD -->
+
+                    <div class="col-md-6">
+
+                        <div class="card h-100">
+
+                            <div class="card-body">
+
+                                <h6 class="mb-3">
+
+                                    Verificabilidad
+
+                                </h6>
+
+
+                                {% if requirement.verifiable %}
+
+                                    <span class="badge bg-success">
+                                        Verificable
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-danger">
+                                        No verificable
+                                    </span>
+
+                                {% endif %}
+
+
+                                <p class="mt-3 mb-0">
+
+                                    <strong>
+                                        Razón:
+                                    </strong>
+
+                                    {{ requirement.verification_reason
+                                       or
+                                       "No especificada." }}
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ===================================== -->
+                <!-- EVIDENCIA                             -->
+                <!-- ===================================== -->
+
+                <div class="card mb-4">
+
+                    <div class="card-body">
+
+                        <strong>
+
+                            Evidencia original
+                            de la entrevista
+
+                        </strong>
+
+
+                        <p class="mt-3 mb-0">
+
+                            "{{ requirement.source_excerpt }}"
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ===================================== -->
+                <!-- RAG                                   -->
+                <!-- ===================================== -->
+
+            </div>
+
+        </div>
+
+    {% endfor %}
+
+    <section id="project-context" class="mb-4">
+        <h3>Contexto académico del proyecto</h3>
+        <p>Una síntesis general basada en los requisitos de todas las entrevistas. Actualízala si cambian los requisitos.</p>
+        <form method="POST" action="{{ url_for('main.enrich_requirements', interview_id=interview.id) }}" class="mb-3">
+            <button class="btn btn-outline-warning" type="submit">{{ 'Actualizar' if project_context else 'Generar' }} contexto académico del proyecto</button>
+        </form>
+        {% include 'project_context.html' %}
+    </section>
+
+</div>
+
+{% endblock %}
+
