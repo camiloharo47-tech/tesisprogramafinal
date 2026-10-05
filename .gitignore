@@ -1,0 +1,19 @@
+# Python and local environment
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary artifacts and local runtime data
+tmp/
+generated/
+instance/
+uploads/
+
+# Local credentials
+.env
+.env.*
+!.env.example
