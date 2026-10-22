@@ -172,6 +172,7 @@ class SRSAgent:
 
     def _build_document(self, project, requirements, general):
         from app.services.srs_guidance_service import SRSGuidanceService
+        from app.services.requirement_specification import specification_rows, requirement_name, PENDING
 
         guidance = SRSGuidanceService().build(project, requirements)
         marker = SRSGuidanceService.MARKER
@@ -235,15 +236,30 @@ class SRSAgent:
             ("3.1.4 Interfaces de comunicaciones", "communications"),
         ]:
             section(title, guidance[key], 3)
-        section("3.2 Requisitos funcionales", "Los RF se organizan por su identificador para facilitar su consulta y trazabilidad hacia las entrevistas.", supplementary=False)
+        section("3.2 Requisitos funcionales", "Los RF se organizan mediante una ficha adaptada de identificación, comportamiento y criterios de aceptación. "
+                "La estructura del documento permanece basada en IEEE 830-1998; la ficha no es una plantilla literal ni una declaración de cumplimiento de ISO/IEC/IEEE 29148. "
+                "Los campos sin evidencia quedan pendientes de aclaración y los detalles se reproducen literalmente de la entrevista.", supplementary=False)
+        interviews = {item.get("id"): item.get("transcription") or "" for item in project.get("interviews", [])}
         for item in requirements:
             lines += [
-                f"### {item.get('code', 'RF')}", "", item.get("description", "No especificado."), "",
-                "**Actor:** " + (item.get("actor") or "No especificado"), "",
+                f"### {item.get('code', 'RF')}", "",
+                "**Nombre:** " + requirement_name(item.get("description")), "",
+                "**Origen:** Entrevista " + str(item.get("interview_id", PENDING)), "",
+                "**Enunciado:** " + item.get("description", PENDING), "",
+                "**Actor:** " + (item.get("actor") or PENDING), "",
                 "**Prioridad:** " + self._priority(item.get("priority")), "",
-                "**Ambiguo:** " + ("Sí" if item.get("ambiguity_detected") else "No"), "",
-                "**Verificable:** " + ("Sí" if item.get("verifiable") else "No"), "", "---", "",
             ]
+            rows = specification_rows(item.get("specification"), interviews.get(item.get("interview_id")) or item.get("source_excerpt") or "", item)
+            for row in rows:
+                if row["key"] == "acceptance_criteria":
+                    continue
+                lines += [f"**{row['label']}:**", ""]
+                lines += ["- " + quote for quote in row["values"]] or [PENDING]
+                lines.append("")
+            criteria = next(row["values"] for row in rows if row["key"] == "acceptance_criteria")
+            lines += ["**Criterios de aceptación:**", ""]
+            lines += [f"- {item.get('code', 'RF')}-CA-{i:02d}: {quote}" for i, quote in enumerate(criteria, 1)] or [PENDING]
+            lines += ["", "---", ""]
         section("3.3 Requisitos de rendimiento", guidance["performance"])
         section("3.4 Restricciones de diseño", guidance["design"])
         section("3.5 Atributos del sistema", guidance["quality"] + "\n\n" + "\n".join(
@@ -253,6 +269,9 @@ class SRSAgent:
         section("4.1 Trazabilidad de requisitos", "Los siguientes fragmentos conservan la evidencia original de las entrevistas.", supplementary=False)
         for item in requirements:
             lines += [f"### {item.get('code', 'RF')}", "", "> " + (item.get("source_excerpt") or "No especificada."), ""]
+            lines += ["**Razón de la prioridad:** " + (item.get("priority_reason") or PENDING), "",
+                      "**Ambigüedad (análisis automático):** " + ("Detectada" if item.get("ambiguity_detected") else "No detectada"), "",
+                      "**Verificabilidad (análisis automático):** " + ("Verificable" if item.get("verifiable") else "Requiere aclaración"), ""]
         context = project.get("context") or {}
         section("4.2 Contexto académico del proyecto", "Antecedentes académicos; no representan requisitos del cliente.\n\n" + (
             context.get("summary") or "El contexto académico todavía no se ha generado. Puede obtenerse desde la pantalla de requisitos funcionales."

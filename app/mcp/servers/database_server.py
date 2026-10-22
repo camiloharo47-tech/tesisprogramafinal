@@ -127,7 +127,8 @@ def get_requirements(
                 ambiguity_reason,
                 verifiable,
                 verification_reason,
-                enriched_context
+                enriched_context,
+                specification
             FROM requirement
             WHERE interview_id = ?
             ORDER BY id ASC
@@ -254,7 +255,8 @@ def get_project_srs_data(
                 ambiguity_reason,
                 verifiable,
                 verification_reason,
-                enriched_context
+                enriched_context,
+                specification
             FROM requirement
             WHERE project_id = ?
             ORDER BY id ASC

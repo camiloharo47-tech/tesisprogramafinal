@@ -1,0 +1,33 @@
+<section class="mb-3" aria-label="Detalles esenciales del requisito">
+    {% if not requirement.specification %}
+    <p class="text-muted small">Este requisito se guardó antes de incorporar los detalles. «Analizar nuevamente» permite extraerlos de la entrevista.</p>
+    {% endif %}
+    {% if requirement.specification_unavailable %}
+    <p class="alert alert-warning">El modelo no pudo completar la clasificación. Se conservan las evidencias explícitas recuperadas mediante reglas; revisa los detalles o analiza nuevamente la entrevista.</p>
+    {% endif %}
+    <div class="rf-components">
+    {% for row in requirement.specification_rows %}
+        <section class="rf-component {% if row.key in ['main_flow', 'acceptance_criteria'] %}rf-component-wide{% endif %}">
+        <div class="rf-component-heading">
+            <h5><span class="rf-step" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>{{ row.label }}</h5>
+            {% if not row['values'] %}<span class="rf-pending">Por aclarar</span>{% endif %}
+        </div>
+        {% if row['values'] %}
+            <ul class="rf-evidence mb-0">
+            {% for quote in row['values'] %}
+                <li>{% if row.key == 'acceptance_criteria' %}<strong>{{ requirement.code }}-CA-{{ '%02d'|format(loop.index) }}:</strong> {% endif %}{{ quote }}</li>
+            {% endfor %}
+            </ul>
+            {% if row.evidence %}
+            <details class="mt-2">
+                <summary>Respaldo en la entrevista</summary>
+                {% for excerpt in row.evidence %}
+                <blockquote class="small text-muted mt-2 mb-1">{{ excerpt }}</blockquote>
+                {% endfor %}
+            </details>
+            {% endif %}
+        {% else %}<p class="rf-help mb-0"><span class="visually-hidden">Pendiente de aclaración. </span>{{ row.help }}</p>{% endif %}
+        </section>
+    {% endfor %}
+    </div>
+</section>

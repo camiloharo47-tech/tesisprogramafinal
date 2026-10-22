@@ -75,6 +75,26 @@ class Interview(db.Model):
 
 class Requirement(db.Model):
 
+    specification = db.Column(db.Text, nullable=True)
+
+    @property
+    def specification_rows(self):
+        from app.services.requirement_specification import specification_rows
+        interview = db.session.get(Interview, self.interview_id)
+        source = interview.transcription if interview else self.source_excerpt
+        return specification_rows(self.specification, source or "", {
+            "description": self.description, "source_excerpt": self.source_excerpt})
+
+    @property
+    def name(self):
+        from app.services.requirement_specification import requirement_name
+        return requirement_name(self.description)
+
+    @property
+    def specification_unavailable(self):
+        from app.services.requirement_specification import read_specification
+        return read_specification(self.specification).get("extraction_status") == "unavailable"
+
     id = db.Column(
         db.Integer,
         primary_key=True

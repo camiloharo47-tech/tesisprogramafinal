@@ -1,7 +1,49 @@
-body {
-    background-color: #f8f9fa;
+/* Bootstrap dark mode also adapts forms, tables, alerts and native controls. */
+:root[data-bs-theme="dark"] {
+    color-scheme: dark;
+    --bs-body-bg: #141a23;
+    --bs-body-color: #dbe3ed;
+    --bs-emphasis-color: #ecf1f7;
+    --bs-secondary-color: #a8b5c6;
+    --bs-secondary-bg: #202b3a;
+    --bs-tertiary-bg: #1c2633;
+    --bs-border-color: #354358;
+    --bs-link-color: #9fc4ff;
+    --bs-link-color-rgb: 159, 196, 255;
+    --bs-link-hover-color: #c5dcff;
+    --bs-link-hover-color-rgb: 197, 220, 255;
+}
+body { background-color: var(--bs-body-bg); color: var(--bs-body-color); }
+.card { --bs-card-bg: #1b2431; --bs-card-border-color: #354358; }
+.navbar.bg-dark { background-color: #111720 !important; border-bottom: 1px solid #354358; }
+.form-control::placeholder { color: #a8b5c6; opacity: 1; }
+.btn-outline-primary { --bs-btn-color: #9fc4ff; --bs-btn-border-color: #6e96cf; }
+.btn-outline-secondary { --bs-btn-color: #bcc8d8; --bs-btn-border-color: #718196; }
+a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid #a9cbff; outline-offset: 4px;
 }
 
 .card {
     height: 100%;
 }
+
+/* Functional requirement fiches: scoped to preserve the rest of the app. */
+.rf-card { height: auto; border: 1px solid #354358; border-radius: 16px; box-shadow: 0 5px 20px #00000020; }
+.rf-card .card-body { padding: clamp(16px, 3vw, 30px); }
+.rf-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.rf-title h4 { font-size: 1.2rem; line-height: 1.5; margin: 0; color: #e1e9f4; }
+.rf-code { background: #293d5d; color: #b9d3ff; padding: 5px 10px; border-radius: 7px; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.rf-statement { margin: 20px 0; padding: 15px 18px; background: #222f41; border-left: 3px solid #7b9dcc; border-radius: 0 8px 8px 0; line-height: 1.65; }
+.rf-statement strong { display: block; font-size: .75rem; color: #b4c4d9; margin-bottom: 5px; }
+.rf-components { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
+.rf-component { padding: 18px; border: 1px solid #354358; border-radius: 10px; min-width: 0; }
+.rf-component-wide { grid-column: 1 / -1; }
+.rf-component-heading { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; }
+.rf-component h5 { font-size: .92rem; font-weight: 650; line-height: 1.5; color: #d6e3f5; margin: 0; }
+.rf-step { color: #a7bad3; font-size: .72rem; margin-right: 9px; }
+.rf-pending { font-size: .7rem; padding: 3px 7px; color: #f0ce91; background: #3a3023; border-radius: 5px; white-space: nowrap; }
+.rf-help { color: #aab8ca; font-size: .86rem; line-height: 1.65; }
+.rf-evidence { padding-left: 19px; color: #d0dbe9; font-size: .92rem; line-height: 1.75; overflow-wrap: anywhere; }
+.rf-evidence li + li { margin-top: 7px; }
+.rf-card summary { color: #afcfff; font-size: .9rem; cursor: pointer; padding: 6px 0; }
+@media (max-width: 700px) { .rf-components { grid-template-columns: 1fr; } }

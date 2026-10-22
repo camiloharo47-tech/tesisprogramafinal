@@ -29,4 +29,7 @@ def create_app(test_config=None):
 
         db.create_all()
 
+        from app.schema_migrations import upgrade_requirement_specification
+        upgrade_requirement_specification(db.engine)
+
     return app

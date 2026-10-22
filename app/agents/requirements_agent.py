@@ -1,6 +1,6 @@
 import re
+import json
 import unicodedata
-from difflib import SequenceMatcher
 
 from app import db
 from app.models import Interview, Requirement
@@ -265,80 +265,51 @@ class RequirementsAgent:
             f"{transcription[:250]}"
         )
 
-        segments = self._split(
-            transcription
-        )
+        from app.services.functional_context import functional_blocks, explicit_actor, fold, pending_information
+        from app.services.requirement_specification import extract_specification
 
         requirements = []
-
-        for index, segment in enumerate(
-            segments,
-            start=1
-        ):
-
-            print()
-
-            print(
-                f"Fragmento "
-                f"{index}/"
-                f"{len(segments)}:"
-            )
-
-            print(
-                segment
-            )
-
-            # =============================================
-            # FILTRO PREVIO
-            # =============================================
-
-            if not self._potential_function(
-                segment
-            ):
-
-                print(
-                    "→ omitido: no expresa "
-                    "una funcionalidad."
-                )
-
-                continue
-
-            # =============================================
-            # OLLAMA
-            # =============================================
-
-            candidates = self._extract(
-                segment
-            )
-
-            # =============================================
-            # VALIDAR CANDIDATOS
-            # =============================================
-
+        for block in functional_blocks(transcription, self.ollama):
+            anchor = block["anchor"]
+            context = " ".join(block["sentences"])
+            # Explicit obligations are already specifications. Copying them
+            # prevents paraphrasing away negations, conditions or input fields.
+            if block.get('description'):
+                candidates = [{"description": block['description'], "actor": "", "verifiable": True}]
+            elif re.match(r"^el sistema (?:no )?(?:deberá|debe|tiene que)\b", anchor, re.I):
+                candidates = [{"description": anchor, "actor": "", "verifiable": True}]
+            else:
+                candidates = self._extract(anchor)
             for candidate in candidates:
-
-                requirement = self._validate(
-                    candidate,
-                    segment,
-                    requirements
-                )
-
-                if requirement:
-
-                    requirements.append(
-                        requirement
-                    )
-
-                    print(
-                        "✓ RF:",
-                        requirement[
-                            "description"
-                        ]
-                    )
-
-        # =============================================
-        # GUARDAR
-        # =============================================
+                if not isinstance(candidate, dict):
+                    continue
+                description = str(candidate.get("description") or "")
+                # Never accept a positive paraphrase of a negative obligation.
+                if re.search(r"\bno\b", fold(anchor)):
+                    candidate["description"] = anchor
+                elif re.search(r"\bno\b", fold(description)):
+                    continue
+                # Use grammatical roles from the request, not arbitrary model
+                # substrings such as "libro y".
+                actor = explicit_actor(block.get('actor_source', anchor), context)
+                candidate["actor"] = actor or ""
+                requirement = self._validate(candidate, anchor, requirements)
+                if not requirement:
+                    continue
+                requirement["actor"] = actor
+                # Priority belongs to the function, not mandatory input fields.
+                priority_source = " ".join(q for q in block["sentences"]
+                    if re.search(r"\b(esencial|indispensable|opcional|prioridad|seria bueno|fundamental)\b", fold(q)))
+                requirement["priority"], requirement["priority_reason"] = self._priority(priority_source)
+                requirement['_scope'] = block['sentences']
+                requirement["specification"] = extract_specification(self.ollama, requirement, transcription)
+                if pending_information(context):
+                    requirement['ambiguity_detected'] = True
+                    requirement['ambiguity_reason'] = 'La entrevista declara aspectos de esta funcionalidad pendientes de definición.'
+                    requirement['verifiable'] = False
+                    requirement['verification_reason'] = 'La especificación requiere aclaraciones antes de poder verificarse completamente.'
+                requirement.pop('_scope', None)
+                requirements.append(requirement)
 
         self._save(
             interview,
@@ -1531,19 +1502,9 @@ Devuelve exclusivamente JSON válido.
 
             return False
 
-        action = self._action(
-            description
-        )
-
-        return bool(
-
-            action
-
-            and action
-            in self._actions(
-                source
-            )
-        )
+        # The entire source rejects this scope. Do not depend on the action
+        # vocabulary: "comprar", for example, may not occur in ACTIONS.
+        return True
 
     # =====================================================
     # REQUISITO NO FUNCIONAL
@@ -1624,15 +1585,9 @@ Devuelve exclusivamente JSON válido.
                 )
             )
 
-            similarity = (
-                SequenceMatcher(
-                    None,
-                    normalized,
-                    existing
-                ).ratio()
-            )
-
-            if similarity >= 0.88:
+            # Similar wording does not imply the same behavior or object.
+            # Only exact normalized duplicates can be discarded safely here.
+            if normalized == existing:
 
                 return True
 
@@ -1693,6 +1648,7 @@ Devuelve exclusivamente JSON válido.
             for marker in (
 
                 "indispensable",
+                "lo mas importante",
 
                 "obligatorio",
                 "obligatoria",
@@ -2011,6 +1967,8 @@ Devuelve exclusivamente JSON válido.
             max_number += 1
 
             requirement = Requirement(
+
+                specification=json.dumps(data.get("specification", {}), ensure_ascii=False),
 
                 project_id=
                     interview.project_id,
