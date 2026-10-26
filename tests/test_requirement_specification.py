@@ -196,7 +196,7 @@ class EvidenceTests(unittest.TestCase):
         result = extract_specification(llm, {'description': 'Registrar libros', 'source_excerpt': SOURCE}, SOURCE)
         self.assertNotIn('approved_by', result['fields'])
         self.assertEqual(result['schema_version'], 3)
-        self.assertEqual(set(llm.generate_json.call_args.args[1]['properties']), {'preconditions', 'inputs', 'main_flow', 'business_rules', 'alternatives', 'outputs', 'acceptance_criteria'})
+        self.assertEqual(set(llm.generate_json.call_args.args[1]['properties']), {'preconditions', 'inputs', 'main_flow', 'business_rules', 'alternatives', 'outputs', 'acceptance_criteria', 'quality'})
         self.assertEqual(result['fields']['inputs'], ['El bibliotecario debe registrar libros con título y autor.', 'El título es obligatorio.'])
 
     def test_migration_preserves_existing_rows_and_is_idempotent(self):
@@ -247,7 +247,7 @@ class IntegrationTests(unittest.TestCase):
         req = self.save_requirement()
         response = self.app.test_client().get(f'/interviews/{self.interview_id}/requirements')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Pendiente de aclaración', response.get_data(as_text=True))
+        self.assertIn('Por aclarar', response.get_data(as_text=True))
         self.assertIn('antes de incorporar', response.get_data(as_text=True))
         interview = db.session.get(Interview, self.interview_id)
         malicious = 'El bibliotecario debe registrar libros con título <script>alert(1)</script>.'
@@ -266,7 +266,8 @@ class IntegrationTests(unittest.TestCase):
             self.assertIn(label, html)
         self.assertIn('<details class=', html)
         self.assertNotIn('<details open', html)
-        self.assertIn('id="project-context"', html)
+        self.assertNotIn('id="project-context"', html)
+        self.assertIn(f'/projects/{self.project_id}/context', html)
         for label in ('Objetivo y necesidad', 'Flujo principal', 'Datos de gestión', 'Fecha de aprobación', 'Responsable de validación'):
             self.assertNotIn(label, html)
 
@@ -348,6 +349,66 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(fields['inputs'], ['El bibliotecario debe registrar libros con título y autor.', 'El título es obligatorio.'])
         self.assertEqual(fields['business_rules'], ['El título es obligatorio.'])
 
+    def test_clothing_transcript_does_not_lose_unpunctuated_requests(self):
+        from app.services.functional_context import functional_blocks
+        source = (Path(__file__).parent / 'fixtures/clothing_transcribed.txt').read_text(encoding='utf-8')
+        # Five headings are literal but some are embedded after commas. The
+        # sixth heading is garbled, yet its functional request remains literal.
+        sixth = 'consultar un desumente de las ventas'
+        self.assertIn(sixth, source)
+        model = Mock()
+        model.generate_json.return_value = {'requests': [sixth, 'enviar facturas inventadas']}
+        blocks = functional_blocks(source, model)
+        self.assertEqual(len(blocks), 6)
+        self.assertTrue(any('registrar los productos' in b['anchor'] for b in blocks))
+        self.assertTrue(any(b['anchor'] == sixth for b in blocks))
+        self.assertFalse(any('inventadas' in b['anchor'] for b in blocks))
+        interview = db.session.get(Interview, self.interview_id)
+        interview.transcription = source; db.session.commit()
+        agent = RequirementsAgent()
+        def response(prompt, schema, **kwargs):
+            if 'requests' in schema['properties']:
+                return {'requests': [sixth]}
+            return {}
+        with patch.object(agent.ollama, 'generate_json', side_effect=response):
+            agent.process(interview.id)
+        rows = Requirement.query.all()
+        self.assertGreaterEqual(len(rows), 6)
+        self.assertLessEqual(len(rows), 10)
+        self.assertTrue(all(r.source_excerpt in source for r in rows))
+        self.assertTrue(any('desumente' in r.description for r in rows))
+
+    def test_narrated_workshop_sections_keep_full_details(self):
+        source = (Path(__file__).parent / 'fixtures/workshop_interview.txt').read_text(encoding='utf-8')
+        interview = db.session.get(Interview, self.interview_id)
+        interview.transcription = source
+        db.session.commit()
+        agent = RequirementsAgent()
+        from app.services.requirement_specification import FIELDS
+        # Field selection is deliberately empty: literal fallback must preserve
+        # the interview's explicit detail. Quality is simulated, not measured.
+        answer = {key: [] for key in FIELDS}
+        answer['quality'] = {key: {'sufficient': True, 'reason': 'Acción y resultado explícitos.'}
+                             for key in ('clarity', 'verifiability')}
+        with patch.object(agent.ollama, 'generate_json', return_value=answer):
+            agent.process(interview.id)
+        rows = Requirement.query.order_by(Requirement.id).all()
+        self.assertEqual(len(rows), 4)
+        for req in rows[:2]:
+            self.assertEqual(req.pending_fields, [], req.description)
+            self.assertIn('recepcionista', req.actor)
+        first = {r['key']: r['values'] for r in rows[0].specification_rows}
+        self.assertIn('su teléfono', ' '.join(first['inputs']))
+        self.assertIn('no se repita', ' '.join(first['business_rules']))
+        self.assertIn('cancelamos', ' '.join(first['alternatives']))
+        self.assertIn('bicicleta recibida', ' '.join(first['outputs']))
+        self.assertNotIn('Esos cuatro datos son obligatorios.', first['acceptance_criteria'])
+        self.assertNotIn('avisos', ' '.join(v for values in first.values() for v in values))
+        self.assertTrue(rows[2].actor_pending)
+        self.assertTrue(rows[2].pending_fields)
+        self.assertTrue(rows[3].pending_fields)
+        self.assertEqual(rows[3].priority, 'opcional')
+
     def test_complete_interview_is_one_function_with_all_components(self):
         source = (Path(__file__).parent / 'fixtures/library_registration.txt').read_text(encoding='utf-8').strip()
         interview = db.session.get(Interview, self.interview_id)
@@ -358,6 +419,7 @@ class IntegrationTests(unittest.TestCase):
         # classifier must still keep results, conditions and test cases apart.
         from app.services.requirement_specification import FIELDS
         noisy = {key: list(range(1, 9)) for key in FIELDS}
+        noisy['quality'] = {key: {'sufficient': True, 'reason': 'Acción y resultado explícitos.'} for key in ('clarity', 'verifiability')}
         with patch.object(agent.ollama, 'generate_json', return_value=noisy), patch.object(agent, '_extract') as extract:
             result = agent.process(self.interview_id)
         extract.assert_not_called()
@@ -424,7 +486,7 @@ class IntegrationTests(unittest.TestCase):
         interview.transcription = source
         db.session.commit()
         agent = RequirementsAgent()
-        def response(prompt, schema):
+        def response(prompt, schema, **kwargs):
             return {'starts': [0]} if 'starts' in schema['properties'] else {}
         with patch.object(agent.ollama, 'generate_json', side_effect=response), patch.object(
                 agent, '_extract', return_value=[{'description': 'El sistema deberá conservar un historial de tratamientos.'}]):

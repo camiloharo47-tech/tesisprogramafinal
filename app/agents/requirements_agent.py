@@ -244,6 +244,9 @@ class RequirementsAgent:
                 "La entrevista no tiene transcripción."
             )
 
+        if interview.clarifications:
+            raise ValueError('Esta entrevista tiene aclaraciones. Actualiza cada RF desde su audio de aclaración para conservar el historial.')
+
         transcription = (
             interview.transcription.strip()
         )
@@ -2028,5 +2031,7 @@ Devuelve exclusivamente JSON válido.
             db.session.add(
                 requirement
             )
+            from app.services.requirement_quality import sync_quality
+            sync_quality(requirement, llm=self.ollama)
 
         db.session.commit()

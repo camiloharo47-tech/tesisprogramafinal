@@ -41,9 +41,69 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .rf-component-heading { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; }
 .rf-component h5 { font-size: .92rem; font-weight: 650; line-height: 1.5; color: #d6e3f5; margin: 0; }
 .rf-step { color: #a7bad3; font-size: .72rem; margin-right: 9px; }
-.rf-pending { font-size: .7rem; padding: 3px 7px; color: #f0ce91; background: #3a3023; border-radius: 5px; white-space: nowrap; }
+.rf-pending { font-size: .75rem; padding: 4px 9px; color: #d9ceb1; background: #34332f; border-radius: 20px; white-space: nowrap; }
 .rf-help { color: #aab8ca; font-size: .86rem; line-height: 1.65; }
 .rf-evidence { padding-left: 19px; color: #d0dbe9; font-size: .92rem; line-height: 1.75; overflow-wrap: anywhere; }
 .rf-evidence li + li { margin-top: 7px; }
 .rf-card summary { color: #afcfff; font-size: .9rem; cursor: pointer; padding: 6px 0; }
 @media (max-width: 700px) { .rf-components { grid-template-columns: 1fr; } }
+
+.rf-component-pending { border: 1px dashed #59616b; background: #202932; }
+.rf-component-pending .rf-help { color: #b7c2cf; }
+
+/* Compact requirement workspace: native disclosure works without JavaScript. */
+.rf-workspace { max-width: 1100px; margin: 0 auto; }
+.rf-back { font-size: .9rem; text-decoration: none; }
+.rf-workspace h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); letter-spacing: -.03em; }
+.rf-toolbar { padding-bottom: 20px; border-bottom: 1px solid #354358; }
+.rf-overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+.rf-overview > div { padding: 18px 20px; background: #1b2431; border: 1px solid #354358; border-radius: 12px; }
+.rf-overview strong { display: block; font-size: 1.8rem; color: #c7ddff; }
+.rf-overview span { color: #a8b5c6; font-size: .85rem; }
+.rf-overview .rf-needs-attention { color: #d9ceb1; }
+.rf-instructions { color: #b4c4d9; line-height: 1.7; }
+.rf-filters { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin: 20px 0 12px; }
+.rf-filters label { display: block; font-size: .85rem; margin-bottom: 6px; }
+.rf-card > .rf-entry-summary { list-style: none; display: flex; align-items: center; gap: 16px; padding: 20px; border-radius: 16px; }
+.rf-entry-summary::-webkit-details-marker { display: none; }
+.rf-entry-summary:hover { background: #222f41; }
+.rf-entry-heading { flex: 1; min-width: 0; }
+.rf-entry-name { display: block; font-size: 1rem; font-weight: 600; color: #e1e9f4; overflow-wrap: anywhere; }
+.rf-entry-hint { display: block; font-size: .78rem; color: #a8b5c6; margin-top: 5px; }
+.rf-entry[open] > summary { border-bottom: 1px solid #354358; border-radius: 16px 16px 0 0; }
+.rf-entry[open] .rf-chevron { transform: rotate(180deg); }
+.rf-filled { color: #b6c9e3; background: #29374b; border-radius: 5px; font-size: .75rem; padding: 4px 8px; }
+.rf-workspace [hidden] { display: none !important; }
+@media (max-width: 600px) {
+  .rf-overview { grid-template-columns: 1fr; gap: 8px; }
+  .rf-overview > div { display: flex; align-items: center; gap: 14px; padding: 10px 16px; }
+  .rf-filters { grid-template-columns: 1fr; }
+  .rf-card > .rf-entry-summary { flex-wrap: wrap; gap: 10px; padding: 16px; }
+  .rf-entry-heading { flex-basis: calc(100% - 95px); }
+  .rf-toolbar .btn { width: 100%; }
+  .rf-toolbar form { width: 100%; }
+}
+
+.rf-review-panel { border: 1px solid #354358; background: #192332; border-radius: 10px; padding: 18px; }
+.rf-review-panel h5 { font-size: .8rem; color: #a8b5c6; margin-bottom: 8px; }
+.rf-review-panel strong { font-size: .9rem; color: #d6e3f5; }
+.rf-review-panel p { font-size: .85rem; color: #b4c4d9; line-height: 1.6; margin-top: 8px; }
+
+/* One audio entry point per fiche, with guidance shown on demand. */
+.rf-audio { border: 1px solid #4b6469; border-radius: 12px; background: #1d2c32; }
+.rf-card .rf-audio > summary { padding: 16px 20px; color: #b9dbd5; font-weight: 600; }
+.rf-audio-body { padding: 0 20px 20px; }
+.rf-audio-body > p { font-size: .88rem; line-height: 1.6; }
+.rf-pending-summary { color: #ccc6b5; }
+.rf-interview-guide { padding: 10px 14px; border: 1px solid #3d5059; border-radius: 8px; margin: 16px 0; }
+.rf-interview-guide li { margin-bottom: 8px; font-size: .88rem; line-height: 1.65; color: #c4d0dc; }
+.rf-interview-guide h6 { margin-top: 18px; color: #bad4d0; }
+.rf-toolbar-link { align-self: center; padding: 8px 10px; font-size: .9rem; text-decoration: none; }
+.rf-workspace .btn-primary, .rf-workspace .btn-success {
+  --bs-btn-bg: #315e60; --bs-btn-border-color: #557f80; --bs-btn-color: #edf6f4;
+  --bs-btn-hover-bg: #3c6d6f; --bs-btn-hover-border-color: #77a4a3;
+  --bs-btn-active-bg: #315e60; --bs-btn-active-border-color: #77a4a3;
+  --bs-btn-disabled-bg: #315052; --bs-btn-disabled-border-color: #557f80;
+}
+.rf-workspace .text-success { color: #a9d4c4 !important; }
+.rf-review-panel { background: #1c2732; border-color: #35434e; }

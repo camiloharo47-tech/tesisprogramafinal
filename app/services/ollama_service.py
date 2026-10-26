@@ -38,7 +38,7 @@ class OllamaService:
             ""
         ).strip()
 
-    def generate_json(self, prompt, schema):
+    def generate_json(self, prompt, schema, *, num_predict=None, timeout=600):
 
         response = requests.post(
             self.url,
@@ -49,10 +49,11 @@ class OllamaService:
                 "format": schema,
                 "options": {
                     "temperature": 0,
-                    "num_ctx": 4096
+                    "num_ctx": 4096,
+                    **({"num_predict": num_predict} if num_predict is not None else {})
                 }
             },
-            timeout=600
+            timeout=timeout
         )
 
         response.raise_for_status()

@@ -27,6 +27,9 @@ class TranscriptionAgent:
                 "La entrevista no existe."
             )
 
+        if interview.clarifications:
+            raise ValueError('La entrevista tiene aclaraciones. Se conserva la versión original; añade nuevos audios desde el RF.')
+
         if not interview.audio_path:
             raise ValueError(
                 "La entrevista no tiene audio."

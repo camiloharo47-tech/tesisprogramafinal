@@ -1,59 +1,90 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container py-4">
-    <h2>Requisitos funcionales</h2>
+<div class="rf-workspace">
+    <a class="rf-back" href="{{ url_for('main.project_detail', project_id=project.id) }}">← Volver al proyecto</a>
+    <h1 class="mt-3">Requisitos funcionales</h1>
     <p class="text-muted">Proyecto: <strong>{{ project.name }}</strong> · Entrevista {{ interview.id }}</p>
-    <div class="d-flex flex-wrap gap-2 mb-4">
+    <div class="rf-toolbar d-flex flex-wrap gap-2 mb-4">
+        {% if not interview.clarifications %}
         <form action="{{ url_for('main.analyze_requirements', interview_id=interview.id) }}" method="POST">
             <button type="submit" class="btn btn-outline-primary">Analizar nuevamente</button>
         </form>
-        <a href="#project-context" class="btn btn-outline-warning">Ver contexto académico del proyecto</a>
+        {% else %}
+        <span class="text-muted">Esta entrevista se actualiza mediante las aclaraciones de cada RF.</span>
+        {% endif %}
+        <a href="{{ url_for('main.project_context_page', project_id=project.id) }}" class="rf-toolbar-link">Contexto académico</a>
         {% if requirements %}
         <form action="{{ url_for('main.generate_srs', project_id=project.id) }}" method="POST">
             <button type="submit" class="btn btn-success">Generar SRS IEEE 830</button>
         </form>
         {% endif %}
-        <a href="{{ url_for('main.interview_detail', interview_id=interview.id) }}" class="btn btn-outline-secondary">Volver a entrevista</a>
+        <a href="{{ url_for('main.interview_detail', interview_id=interview.id) }}" class="rf-toolbar-link">Ver entrevista</a>
     </div>
     {% if not requirements %}
     <div class="alert alert-info">Todavía no existen requisitos funcionales identificados para esta entrevista.</div>
     {% else %}
     <p class="text-muted small">Ficha de especificación para desarrollo y pruebas. El contenido procede de la entrevista; los apartados pendientes deben aclararse antes de implementar la funcionalidad.</p>
     {% endif %}
+    {% if requirements %}
+    {% set totals = namespace(pending=0) %}
+    {% for requirement in requirements %}{% if requirement.pending_fields %}{% set totals.pending = totals.pending + 1 %}{% endif %}{% endfor %}
+    <div class="rf-overview" aria-label="Resumen de requisitos">
+        <div><strong>{{ requirements|length }}</strong><span>Requisitos identificados</span></div>
+        <div><strong class="rf-needs-attention">{{ totals.pending }}</strong><span>Con campos por aclarar</span></div>
+        <div><strong>{{ requirements|length - totals.pending }}</strong><span>Sin puntos por aclarar</span></div>
+    </div>
+    <p class="rf-instructions">Abre una ficha para consultar sus detalles o añadir una aclaración por audio.</p>
+    <div class="rf-filters" id="rf-filters" hidden>
+        <div><label for="rf-search">Buscar requisito</label><input class="form-control" id="rf-search" type="search" placeholder="Código o palabras del requisito…"></div>
+        <div><label for="rf-status">Mostrar</label><select class="form-select" id="rf-status"><option value="all">Todos los requisitos</option><option value="pending">Con campos por aclarar</option><option value="filled">Sin puntos por aclarar</option></select></div>
+    </div>
+    <p id="rf-results" class="text-muted small" role="status" aria-live="polite"></p>
+    {% endif %}
     {% set priorities = {'esencial': 'Esencial', 'opcional': 'Opcional', 'condicional': 'Condicional'} %}
     {% for requirement in requirements %}
-    <article class="card mb-4 rf-card">
+    {% set pending = requirement.pending_fields %}
+    <details class="card mb-3 rf-card rf-entry" data-state="{{ 'pending' if pending else 'filled' }}">
+        <summary class="rf-entry-summary">
+            <span class="rf-code">{{ requirement.code }}</span>
+            <span class="rf-entry-heading"><span class="rf-entry-name">{{ requirement.name }}</span><span class="rf-entry-hint">Abrir ficha y añadir aclaraciones</span></span>
+            <span class="{{ 'rf-pending' if pending else 'rf-filled' }}">{{ (pending|length|string) + ' campos por aclarar' if pending else 'Sin puntos por aclarar' }}</span>
+            <span class="rf-chevron" aria-hidden="true">⌄</span>
+        </summary>
         <div class="card-body">
-            <div class="rf-title"><span class="rf-code">{{ requirement.code }}</span><h4>{{ requirement.name }}</h4></div>
             <p class="rf-statement"><strong>Enunciado</strong>{{ requirement.description }}</p>
             <div class="row mb-3">
-                <div class="col-md-8"><strong>Actor:</strong> {{ requirement.actor or 'Pendiente de aclaración' }}</div>
-                <div class="col-md-4"><strong>Prioridad:</strong> {{ priorities.get(requirement.priority, 'No especificada') }}</div>
+                <div class="col-md-8"><strong>Actor:</strong> {% if requirement.actor_pending %}<span class="rf-pending">Por aclarar</span>{% else %}{{ requirement.actor }}{% endif %}</div>
+                <div class="col-md-4"><strong>Prioridad:</strong> {% if requirement.priority in priorities %}{{ priorities[requirement.priority] }}{% else %}<span class="rf-pending">Por aclarar</span>{% endif %}</div>
             </div>
-            {% include 'requirement_specification.html' %}
-            <details class="border-top pt-3">
-                <summary>Evidencia y revisión del requisito</summary>
-                <div class="mt-3">
-                    <p><strong>Origen:</strong> Entrevista {{ requirement.interview_id }}.</p>
-                    <blockquote class="border-start ps-3">{{ requirement.source_excerpt }}</blockquote>
-                    <p><strong>Razón de la prioridad:</strong> {{ requirement.priority_reason or 'La entrevista no expresa una prioridad explícita.' }}</p>
-                    <p><strong>Ambigüedad:</strong> {{ 'Posible ambigüedad' if requirement.ambiguity_detected else 'Sin ambigüedad detectada' }}.<br>
-                    {{ requirement.ambiguity_reason or 'Sin observaciones adicionales.' }}</p>
-                    <p><strong>Verificabilidad:</strong> {{ 'Verificable según el análisis automático' if requirement.verifiable else 'Requiere aclaración para verificarlo' }}.<br>
-                    {{ requirement.verification_reason or 'Sin observaciones adicionales.' }}</p>
-                    <small class="text-muted">Los detalles reproducen fragmentos de la entrevista; su clasificación y los criterios de aceptación requieren revisión.</small>
+            {% set quality = requirement.quality_attributes %}
+            {% set guidance = requirement.interview_guidance %}
+            <section class="rf-review-panel mb-3" aria-label="Atributos del requisito">
+                <div class="row g-3 mb-3">
+                {% for key, label in [('clarity', 'Claridad (sin ambigüedad)'), ('verifiability', 'Verificabilidad')] %}
+                    <div class="col-md-6">
+                        <h5>{{ label }}</h5>
+                        <strong class="{{ 'text-success' if quality[key].sufficient else 'rf-pending' }}">{{ 'Sí' if quality[key].sufficient else 'Pendiente de procesamiento' if quality[key].status == 'unavailable' else 'Por aclarar' }}</strong>
+                        <p>{{ quality[key].reason }}</p>
+                    </div>
+                {% endfor %}
                 </div>
-            </details>
+                <details class="border-top pt-2">
+                    <summary>Ver origen y razón de la prioridad</summary>
+                    <div class="mt-3">
+                        <p><strong>Origen:</strong> Entrevista {{ requirement.interview_id }}.</p>
+                        <blockquote class="border-start ps-3">{{ requirement.source_excerpt }}</blockquote>
+                        <p><strong>Razón de la prioridad:</strong> {{ requirement.priority_reason or 'La entrevista no expresa una prioridad explícita.' }}</p>
+                    </div>
+                </details>
+            </section>
+            {% include 'clarification_audio.html' %}
+            {% include 'requirement_specification.html' %}
+
         </div>
-    </article>
+    </details>
     {% endfor %}
-    <section id="project-context" class="mb-4">
-        <h3>Contexto académico del proyecto</h3>
-        <p>Una síntesis general basada en los requisitos de todas las entrevistas. Actualízala si cambian los requisitos.</p>
-        <form method="POST" action="{{ url_for('main.enrich_requirements', interview_id=interview.id) }}" class="mb-3">
-            <button class="btn btn-outline-warning" type="submit">{{ 'Actualizar' if project_context else 'Generar' }} contexto académico del proyecto</button>
-        </form>
-        {% include 'project_context.html' %}
-    </section>
+
+    <p id="rf-empty-search" class="alert alert-secondary" hidden>No hay requisitos que coincidan. Prueba otra búsqueda o muestra todos.</p>
 </div>
+<script src="{{ url_for('static', filename='js/requirements.js') }}" defer></script>
 {% endblock %}

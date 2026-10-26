@@ -1,5 +1,5 @@
 from app import db
-from app.models import Interview
+from app.models import Interview, Requirement
 
 from app.agents.transcription_agent import (
     TranscriptionAgent
@@ -22,9 +22,8 @@ class Orchestrator:
 
     def __init__(self):
 
-        self.transcription_agent = (
-            TranscriptionAgent()
-        )
+        # Load Whisper only when an audio actually needs transcription.
+        self.transcription_agent = None
 
         self.requirements_agent = (
             RequirementsAgent()
@@ -89,9 +88,16 @@ class Orchestrator:
             "Agente 1: Transcripción"
         )
 
-        self.transcription_agent.process(
-            interview_id
-        )
+        clarifications = interview.clarifications
+        if clarifications:
+            from app.services.clarification_service import consolidate
+            consolidate(interview)
+            db.session.commit()
+            print('ORQUESTADOR → conservando transcripción original y aclaraciones.')
+        else:
+            if self.transcription_agent is None:
+                self.transcription_agent = TranscriptionAgent()
+            self.transcription_agent.process(interview_id)
 
         print(
             "ORQUESTADOR → "
@@ -108,11 +114,23 @@ class Orchestrator:
             "Agente 2: Requisitos"
         )
 
-        requirements = (
-            self.requirements_agent.process(
-                interview_id
-            )
-        )
+        if clarifications:
+            from app.services.clarification_service import apply_clarification
+            for item in clarifications:
+                if item.status != 'applied':
+                    try:
+                        apply_clarification(item)
+                    except Exception as error:
+                        db.session.rollback()
+                        item.error = str(error)
+                        db.session.commit()
+                        raise ValueError(f'Aclaración de {item.code} pendiente: {error}') from error
+            requirements = Requirement.query.filter_by(interview_id=interview_id).all()
+            if not requirements:
+                raise ValueError('La entrevista tiene aclaraciones pero no requisitos asociados.')
+            print('ORQUESTADOR → utilizando los RF actualizados; se conservan códigos e historial.')
+        else:
+            requirements = self.requirements_agent.process(interview_id)
 
         print(
             "ORQUESTADOR → "

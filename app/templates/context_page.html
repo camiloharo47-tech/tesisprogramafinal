@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Contexto académico — {{ project.name }}{% endblock %}
+{% block content %}
+<h1>Contexto académico del proyecto</h1>
+<p class="text-muted">{{ project.name }} · Síntesis compartida por todas las entrevistas.</p>
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.project_detail', project_id=project.id) }}">Volver al proyecto</a>
+    {% for interview in interviews %}
+    <a class="btn btn-outline-primary" href="{{ url_for('main.view_requirements', interview_id=interview.id) }}">Requisitos de entrevista {{ interview.id }}</a>
+    {% endfor %}
+</div>
+<p>Genera o actualiza el contexto académico después de modificar los requisitos.</p>
+<form method="POST" action="{{ url_for('main.enrich_project', project_id=project.id) }}" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Generando contexto…';">
+    <button class="btn btn-outline-warning" type="submit">{{ 'Actualizar' if project_context else 'Generar' }} contexto académico</button>
+</form>
+{% include 'project_context.html' %}
+{% endblock %}

@@ -3,11 +3,11 @@
     <p class="text-muted small">Este requisito se guardó antes de incorporar los detalles. «Analizar nuevamente» permite extraerlos de la entrevista.</p>
     {% endif %}
     {% if requirement.specification_unavailable %}
-    <p class="alert alert-warning">El modelo no pudo completar la clasificación. Se conservan las evidencias explícitas recuperadas mediante reglas; revisa los detalles o analiza nuevamente la entrevista.</p>
+    <p class="alert alert-warning">El modelo no pudo completar la clasificación. Se conservan las evidencias explícitas recuperadas mediante reglas. Puedes añadir una aclaración por audio para completar la ficha.</p>
     {% endif %}
     <div class="rf-components">
     {% for row in requirement.specification_rows %}
-        <section class="rf-component {% if row.key in ['main_flow', 'acceptance_criteria'] %}rf-component-wide{% endif %}">
+        <section class="rf-component {% if not row['values'] %}rf-component-pending{% endif %} {% if row.key in ['main_flow', 'acceptance_criteria'] %}rf-component-wide{% endif %}">
         <div class="rf-component-heading">
             <h5><span class="rf-step" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>{{ row.label }}</h5>
             {% if not row['values'] %}<span class="rf-pending">Por aclarar</span>{% endif %}
@@ -26,7 +26,7 @@
                 {% endfor %}
             </details>
             {% endif %}
-        {% else %}<p class="rf-help mb-0"><span class="visually-hidden">Pendiente de aclaración. </span>{{ row.help }}</p>{% endif %}
+        {% else %}<p class="rf-help mb-0">{{ row.help }}</p>{% endif %}
         </section>
     {% endfor %}
     </div>

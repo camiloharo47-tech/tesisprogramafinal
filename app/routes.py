@@ -12,6 +12,8 @@ from flask import (
     current_app,
     send_file
 )
+from flask import flash
+from app.models import RequirementClarification
 
 from werkzeug.utils import secure_filename
 
@@ -54,6 +56,68 @@ main = Blueprint(
     "main",
     __name__
 )
+
+
+@main.route('/requirements/<int:requirement_id>/clarifications', methods=['POST'])
+def upload_clarification(requirement_id):
+    from app.services.requirement_specification import FIELDS
+    from app.services.clarification_service import consolidate, apply_clarification
+    from app.services.whisper_service import WhisperService
+    requirement = Requirement.query.get_or_404(requirement_id)
+    interview = Interview.query.get_or_404(requirement.interview_id)
+    target = url_for('main.view_requirements', interview_id=interview.id)
+    selected = list(FIELDS)
+    audio = request.files.get('audio')
+    if not interview.transcription:
+        flash('La entrevista debe estar transcrita antes de añadir aclaraciones.', 'warning')
+        return redirect(target)
+    if not audio or not audio.filename or not allowed_audio(audio.filename):
+        flash('Selecciona un archivo de audio con formato admitido.', 'warning')
+        return redirect(target)
+    filename = uuid4().hex + '.' + audio.filename.rsplit('.', 1)[1].lower()
+    path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+    try:
+        audio.save(path)
+        transcription = WhisperService(model_name='base').transcribe(path).strip()
+        if not transcription:
+            raise ValueError('No se pudo obtener texto del audio.')
+        item = RequirementClarification(requirement_id=requirement.id, interview_id=interview.id,
+            code=requirement.code, audio_path=filename, transcription=transcription,
+            fields=json.dumps(selected))
+        db.session.add(item)
+        db.session.flush()
+        consolidate(interview)
+        db.session.commit()
+    except Exception as error:
+        db.session.rollback()
+        if os.path.isfile(path):
+            os.remove(path)
+        flash(f'No se guardó la aclaración: {error}', 'danger')
+        return redirect(target)
+    try:
+        apply_clarification(item)
+        flash('Aclaración incorporada al RF y a la transcripción. La ficha muestra los campos completados y los puntos que aún necesitan información. Genera otro SRS para actualizar el documento.', 'success')
+    except Exception as error:
+        db.session.rollback()
+        item.error = str(error)
+        db.session.commit()
+        flash('Audio y transcripción guardados. No se actualizó el RF: ' + str(error), 'warning')
+    return redirect(target)
+
+
+@main.route('/clarifications/<int:clarification_id>/retry', methods=['POST'])
+def retry_clarification(clarification_id):
+    from app.services.clarification_service import apply_clarification
+    item = RequirementClarification.query.get_or_404(clarification_id)
+    try:
+        apply_clarification(item)
+        flash('Aclaración aplicada. La ficha muestra los campos actualizados, la claridad y la verificabilidad.', 'success')
+    except Exception as error:
+        db.session.rollback()
+        item.error = str(error)
+        db.session.commit()
+        flash('No se pudo aplicar la aclaración: ' + str(error), 'warning')
+    return redirect(url_for('main.view_requirements', interview_id=item.interview_id))
 
 
 # =====================================================
@@ -356,6 +420,7 @@ def transcribe_interview(interview_id):
         print(
             f"Error Agente 1: {error}"
         )
+        flash(str(error), 'warning')
 
     return redirect(
         url_for(
@@ -392,6 +457,7 @@ def analyze_requirements(interview_id):
         print(
             f"Error Agente 2: {error}"
         )
+        flash(str(error), 'warning')
 
     return redirect(
         url_for(
@@ -456,12 +522,20 @@ def view_requirements(interview_id):
 def enrich_requirements(interview_id):
     interview = Interview.query.get_or_404(interview_id)
     enrich_project(interview.project_id)
-    return redirect(url_for("main.view_requirements", interview_id=interview.id, _anchor="project-context"))
+    return redirect(url_for("main.project_context_page", project_id=interview.project_id))
 
 
 def get_project_context(project_id):
     record = db.session.get(ProjectContext, project_id)
     return load_enriched_context(record.content) if record else None
+
+
+@main.route('/projects/<int:project_id>/context')
+def project_context_page(project_id):
+    project = Project.query.get_or_404(project_id)
+    interviews = Interview.query.filter_by(project_id=project.id).order_by(Interview.id).all()
+    return render_template('context_page.html', project=project, interviews=interviews,
+                           project_context=get_project_context(project.id))
 
 
 @main.route("/projects/<int:project_id>/enrich", methods=["POST"])
@@ -472,7 +546,7 @@ def enrich_project(project_id):
     except Exception as error:
         from flask import flash
         flash(f"No se pudo generar el contexto del proyecto: {error}", "warning")
-    return redirect(url_for("main.project_detail", project_id=project_id))
+    return redirect(url_for("main.project_context_page", project_id=project_id))
 
 
 # =====================================================
@@ -659,6 +733,14 @@ def delete_project(project_id):
         )
 
         for interview in interviews:
+            for item in interview.clarifications:
+                extra_path = os.path.join(current_app.config['UPLOAD_FOLDER'], item.audio_path)
+                if os.path.isfile(extra_path):
+                    os.remove(extra_path)
+                db.session.delete(item)
+        db.session.flush()
+
+        for interview in interviews:
 
             if interview.audio_path:
 
@@ -824,6 +906,9 @@ def process_interview_all(
         )
 
     except Exception as error:
+        db.session.rollback()
+        flash(f"No se pudo completar el procesamiento: {error}", "warning")
+
 
         print()
         print("=" * 60)
